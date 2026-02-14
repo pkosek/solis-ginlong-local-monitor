@@ -1,0 +1,15 @@
+services:
+  solar-monitor:
+    build: .
+    container_name: solar-monitor
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      # Persist SQLite database outside the container
+      - solar-data:/data
+    # Host networking so the container can reach the inverter on your LAN
+    # and the dashboard is accessible on port 5000 directly
+    network_mode: host
+
+volumes:
+  solar-data:

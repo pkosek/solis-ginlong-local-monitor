@@ -1,0 +1,29 @@
+# Environment config (contains real IP / serial)
+.env
+
+# SQLite database and WAL sidecar files
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Legacy config
+config.json
+
+# Dev/test scripts that shouldn't be in repo
+scan_network.ps1
+probe_devices.ps1

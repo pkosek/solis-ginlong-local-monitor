@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.db
+.git/
+.gitignore
+.env
+.env.example
+README.md
+LICENSE
+test_*.py
+seed_and_test.py
+scan_network.ps1
+probe_devices.ps1
+config.json
