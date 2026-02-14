@@ -17,6 +17,10 @@ from pysolarmanv5 import PySolarmanV5
 
 import config as cfg
 
+# Sanity limit: discard readings where active power exceeds this value (watts).
+# Even the largest single-phase Solis inverter tops out well below 10 kW.
+MAX_PLAUSIBLE_POWER_W = 10_000
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -91,15 +95,15 @@ def read_inverter() -> dict:
 
     data: dict = {}
     try:
-        # Active Power (reg 3004, uint32 across 2 registers)
-        r = modbus.read_input_registers(register_addr=3004, quantity=2)
-        data["active_power_w"] = (r[0] << 16) + r[1]
+        # Active Power (reg 3004, uint16)
+        r = modbus.read_input_registers(register_addr=3004, quantity=1)
+        data["active_power_w"] = r[0]
         time.sleep(0.3)
 
-        # Reactive Power (reg 3006, int32)
-        r = modbus.read_input_registers(register_addr=3006, quantity=2)
-        val = (r[0] << 16) + r[1]
-        data["reactive_power_var"] = val - 4294967296 if val > 2147483647 else val
+        # Reactive Power (reg 3006, int16)
+        r = modbus.read_input_registers(register_addr=3006, quantity=1)
+        val = r[0]
+        data["reactive_power_var"] = val - 65536 if val > 32767 else val
         time.sleep(0.3)
 
         # PV1 Voltage & Current (reg 3021-3022)
@@ -254,6 +258,19 @@ def main() -> None:
     while True:
         try:
             data = read_inverter()
+
+            # Sanity check: discard obviously bogus readings that can occur
+            # when registers are misread or the inverter returns garbage.
+            power = data.get("active_power_w", 0)
+            if power > MAX_PLAUSIBLE_POWER_W:
+                log.warning(
+                    "Reading discarded: active_power_w=%s exceeds %sW limit",
+                    power,
+                    MAX_PLAUSIBLE_POWER_W,
+                )
+                time.sleep(cfg.POLL_INTERVAL)
+                continue
+
             store_reading(conn, data)
             update_daily_summary(conn)
         except Exception as exc:
