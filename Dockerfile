@@ -9,6 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY collector.py dashboard.py config.py start.sh ./
 COPY templates/ templates/
+COPY static/ static/
 
 # Create data directory for SQLite
 RUN mkdir -p /data
