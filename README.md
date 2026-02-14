@@ -2,7 +2,7 @@
 
 A lightweight, self-hosted monitoring solution for Solis (Ginlong) inverters. Runs on a Raspberry Pi with Docker, polls your inverter over the local network using the SolarMAN V5 protocol, stores historical data in SQLite, and serves a real-time web dashboard.
 
-<!-- screenshot placeholder: ![Dashboard](docs/screenshot.png) -->
+![Dashboard Screenshot](screenshot.png)
 
 ## Features
 
@@ -34,7 +34,7 @@ It may work with other Solis inverters that use the same register map and SolarM
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/YOUR_USERNAME/solis-ginlong-local-monitor.git
+git clone https://github.com/pkosek/solis-ginlong-local-monitor.git
 cd solis-ginlong-local-monitor
 
 # 2. Create your .env file from the example
