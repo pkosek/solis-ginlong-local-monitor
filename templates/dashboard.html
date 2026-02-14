@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solar Monitor</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js" integrity="sha384-cVMg8E3QFwTvGCDuK+ET4PD341jF3W8nO1auiXfuZNQkzbUUiBGLsIQUE+b1mxws" crossorigin="anonymous"></script>
     <style>
         :root {
             --bg: #0f1923;
@@ -189,10 +189,10 @@
     </div>
 
     <div class="controls">
-        <button class="active" onclick="setRange('today')">Today</button>
-        <button onclick="setRange('7d')">7 Days</button>
-        <button onclick="setRange('30d')">30 Days</button>
-        <button onclick="setRange('custom')">Custom</button>
+        <button class="active" onclick="setRange('today', event)">Today</button>
+        <button onclick="setRange('7d', event)">7 Days</button>
+        <button onclick="setRange('30d', event)">30 Days</button>
+        <button onclick="setRange('custom', event)">Custom</button>
         <input type="date" id="startDate" style="display:none" onchange="loadCustomRange()">
         <input type="date" id="endDate" style="display:none" onchange="loadCustomRange()">
         <span class="last-update">Last update: <span id="lastUpdate">--</span></span>
@@ -458,10 +458,10 @@
             }
         }
 
-        function setRange(range) {
+        function setRange(range, ev) {
             currentRange = range;
             document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
+            ev.target.classList.add('active');
 
             const showDates = range === 'custom';
             document.getElementById('startDate').style.display = showDates ? 'inline' : 'none';

@@ -211,7 +211,7 @@ def update_daily_summary(conn: sqlite3.Connection) -> None:
             MAX(energy_today_kwh),
             MAX(active_power_w),
             AVG(temperature_c),
-            COUNT(*) * ? / 60.0
+            COUNT(*) * ? / 3600.0
         FROM readings
         WHERE date(timestamp) = ? AND active_power_w > 0
         """,

@@ -69,9 +69,12 @@ All settings are controlled via environment variables. Copy `.env.example` to `.
 | `MODBUS_PORT` | No | `8899` | SolarMAN V5 port |
 | `SLAVE_ID` | No | `1` | Modbus slave ID |
 | `POLL_INTERVAL` | No | `300` | Polling interval in seconds (5 min) |
+| `WEB_HOST` | No | `0.0.0.0` | Bind address for the dashboard (use `127.0.0.1` to restrict to localhost) |
 | `WEB_PORT` | No | `5000` | Dashboard web server port |
 | `DB_FILENAME` | No | `solar_data.db` | SQLite database filename |
-| `TZ` | No | `UTC` | Timezone (e.g. `Europe/London`) |
+| `TZ` | No | `UTC` | Container timezone for log timestamps (e.g. `Europe/London`) |
+
+> **Note:** Daily rollups and chart aggregations use UTC regardless of the `TZ` setting. The `TZ` variable affects container log timestamps and system time display.
 
 ### Finding Your Logger Serial Number
 
@@ -129,6 +132,20 @@ graph TD
 
 **Register mapping looks wrong:**
 - The Solis single-phase register map has a quirk: AC voltage is at register 3035 ("Phase B") and AC current at 3038 ("Phase C"). These are the correct registers for single-phase models.
+
+## Network Notes
+
+The Docker container uses **host networking** (`network_mode: host` in `docker-compose.yml`). This is required so the container can reach the inverter on your local network — bridge networking would isolate the container and prevent direct communication with LAN devices on port 8899.
+
+## Security Considerations
+
+This tool is designed for **home LAN use only**. Please be aware of the following:
+
+- **No authentication** -- the web dashboard and API endpoints have no login or access control. Anyone who can reach port 5000 on your Pi can view your solar data.
+- **Host networking** -- the container shares the host's network stack. The dashboard binds to `0.0.0.0` by default, making it accessible to all devices on your network.
+- **Do not expose to the internet** -- there is no TLS, no authentication, and no rate limiting. This is not suitable for public-facing deployment.
+
+**To restrict access to the Pi itself** (e.g. for testing), set `WEB_HOST=127.0.0.1` in your `.env` file. This binds the dashboard to localhost only.
 
 ## License
 

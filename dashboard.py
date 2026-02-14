@@ -140,13 +140,13 @@ def api_daily_summary():
 
     if not rows:
         rows = conn.execute(
-            """
+            f"""
             SELECT date(timestamp) AS date,
                    MAX(energy_today_kwh) AS energy_kwh,
                    MAX(active_power_w)   AS peak_power_w,
                    NULL                  AS peak_power_time,
                    AVG(temperature_c)    AS avg_temperature_c,
-                   COUNT(*) * 5.0 / 60   AS generation_hours
+                   COUNT(*) * {int(cfg.POLL_INTERVAL)} / 3600.0 AS generation_hours
             FROM readings WHERE active_power_w > 0
             GROUP BY date(timestamp)
             ORDER BY date DESC LIMIT ?
