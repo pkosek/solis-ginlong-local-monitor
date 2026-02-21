@@ -159,6 +159,14 @@ def read_inverter() -> dict:
     finally:
         modbus.disconnect()
 
+    # Register 3004 (active power) returns 0 at low-to-medium output on some
+    # Solis firmware versions. Fall back to V×I from the AC side, which is
+    # accurate for grid-tie inverters whose power factor is ≥ 0.99.
+    if not data.get("active_power_w") and data.get("ac_current_a", 0) > 0.1:
+        data["active_power_w"] = round(
+            data.get("ac_voltage_v", 0) * data.get("ac_current_a", 0)
+        )
+
     return data
 
 
@@ -218,9 +226,10 @@ def upsert_daily_summary_for_date(conn: sqlite3.Connection, date: str) -> None:
         """
         SELECT
             MAX(energy_today_kwh),
-            MAX(active_power_w),
+            MAX(CASE WHEN active_power_w > 0 THEN active_power_w
+                     ELSE ac_voltage_v * ac_current_a END),
             AVG(temperature_c),
-            SUM(CASE WHEN active_power_w > 0 THEN 1 ELSE 0 END) * ? / 3600.0
+            SUM(CASE WHEN active_power_w > 0 OR ac_current_a > 0.1 THEN 1 ELSE 0 END) * ? / 3600.0
         FROM readings
         WHERE date(timestamp) = ?
         """,
@@ -229,7 +238,11 @@ def upsert_daily_summary_for_date(conn: sqlite3.Connection, date: str) -> None:
 
     if row and row[0] is not None and row[0] > 0:
         peak_row = conn.execute(
-            "SELECT timestamp FROM readings WHERE date(timestamp) = ? ORDER BY active_power_w DESC LIMIT 1",
+            """
+            SELECT timestamp FROM readings WHERE date(timestamp) = ?
+            ORDER BY CASE WHEN active_power_w > 0 THEN active_power_w
+                          ELSE ac_voltage_v * ac_current_a END DESC LIMIT 1
+            """,
             (date,),
         ).fetchone()
         conn.execute(

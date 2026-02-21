@@ -76,15 +76,21 @@ def api_history():
 
     conn = get_db()
 
+    # active_power_w from register 3004 reads as 0 on some Solis firmware
+    # versions even when generating. Fall back to V×I (apparent ≈ active for
+    # PF ≥ 0.99 grid-tie inverters) for rows where the register was zero.
+    POWER_EXPR = """CASE WHEN active_power_w > 0 THEN active_power_w
+                         ELSE ac_voltage_v * ac_current_a END"""
+
     if resolution == "hourly":
         rows = conn.execute(
-            """
+            f"""
             SELECT strftime('%Y-%m-%dT%H:00:00Z', timestamp) AS timestamp,
-                   AVG(active_power_w) AS active_power_w,
-                   MAX(active_power_w) AS peak_power_w,
-                   AVG(pv1_voltage_v)  AS pv1_voltage_v,
-                   AVG(ac_voltage_v)   AS ac_voltage_v,
-                   AVG(temperature_c)  AS temperature_c,
+                   AVG({POWER_EXPR})  AS active_power_w,
+                   MAX({POWER_EXPR})  AS peak_power_w,
+                   AVG(pv1_voltage_v) AS pv1_voltage_v,
+                   AVG(ac_voltage_v)  AS ac_voltage_v,
+                   AVG(temperature_c) AS temperature_c,
                    MAX(energy_today_kwh) AS energy_today_kwh
             FROM readings
             WHERE date(timestamp) >= ? AND date(timestamp) <= ?
@@ -95,11 +101,11 @@ def api_history():
         ).fetchall()
     elif resolution == "daily":
         rows = conn.execute(
-            """
+            f"""
             SELECT date(timestamp) AS timestamp,
-                   AVG(active_power_w) AS active_power_w,
-                   MAX(active_power_w) AS peak_power_w,
-                   AVG(temperature_c)  AS temperature_c,
+                   AVG({POWER_EXPR})  AS active_power_w,
+                   MAX({POWER_EXPR})  AS peak_power_w,
+                   AVG(temperature_c) AS temperature_c,
                    MAX(energy_today_kwh) AS energy_today_kwh
             FROM readings
             WHERE date(timestamp) >= ? AND date(timestamp) <= ?
@@ -110,8 +116,10 @@ def api_history():
         ).fetchall()
     else:
         rows = conn.execute(
-            """
-            SELECT timestamp, active_power_w, pv1_voltage_v, pv1_current_a,
+            f"""
+            SELECT timestamp,
+                   ROUND({POWER_EXPR}) AS active_power_w,
+                   pv1_voltage_v, pv1_current_a,
                    ac_voltage_v, temperature_c, energy_today_kwh
             FROM readings
             WHERE date(timestamp) >= ? AND date(timestamp) <= ?

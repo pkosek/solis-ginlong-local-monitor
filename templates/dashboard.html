@@ -412,15 +412,18 @@
                 case '30d':
                     end = now.toISOString().slice(0, 10);
                     start = new Date(now - 30 * 86400000).toISOString().slice(0, 10);
-                    resolution = 'hourly';
+                    resolution = 'daily';
                     break;
-                case 'custom':
+                case 'custom': {
                     start = document.getElementById('startDate').value;
                     end = document.getElementById('endDate').value;
                     if (!start || !end) return;
                     const daysDiff = (new Date(end) - new Date(start)) / 86400000;
-                    resolution = daysDiff > 7 ? 'hourly' : 'raw';
+                    if (daysDiff <= 1)       resolution = 'raw';
+                    else if (daysDiff <= 14) resolution = 'hourly';
+                    else                     resolution = 'daily';
                     break;
+                }
             }
 
             try {
@@ -428,6 +431,11 @@
                 const history = await fetchJSON(
                     `/api/history?start=${start}&end=${end}&resolution=${resolution}`
                 );
+
+                // 'raw' = single day → label by hour; anything coarser → label by date.
+                const xTimeUnit = (resolution === 'raw') ? 'hour' : 'day';
+                powerChart.options.scales.x.time = { unit: xTimeUnit };
+                voltTempChart.options.scales.x.time = { unit: xTimeUnit };
 
                 powerChart.data.datasets[0].data = history.map(r => ({
                     x: new Date(r.timestamp),
