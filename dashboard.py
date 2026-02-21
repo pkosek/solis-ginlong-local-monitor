@@ -146,8 +146,8 @@ def api_daily_summary():
                    MAX(active_power_w)   AS peak_power_w,
                    NULL                  AS peak_power_time,
                    AVG(temperature_c)    AS avg_temperature_c,
-                   COUNT(*) * {int(cfg.POLL_INTERVAL)} / 3600.0 AS generation_hours
-            FROM readings WHERE active_power_w > 0
+                   SUM(CASE WHEN active_power_w > 0 THEN 1 ELSE 0 END) * {int(cfg.POLL_INTERVAL)} / 3600.0 AS generation_hours
+            FROM readings WHERE energy_today_kwh > 0
             GROUP BY date(timestamp)
             ORDER BY date DESC LIMIT ?
             """,

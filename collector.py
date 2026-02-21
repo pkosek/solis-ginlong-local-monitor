@@ -206,26 +206,31 @@ def store_reading(conn: sqlite3.Connection, data: dict) -> None:
     )
 
 
-def update_daily_summary(conn: sqlite3.Connection) -> None:
-    """Upsert the daily summary row for today."""
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+def upsert_daily_summary_for_date(conn: sqlite3.Connection, date: str) -> None:
+    """Compute and upsert the daily summary for the given UTC date (YYYY-MM-DD).
+
+    Gates on energy_today_kwh > 0 so that days with no generation are skipped,
+    but does NOT require active_power_w > 0 — the inverter's accumulated daily
+    energy counter is reliable even when instantaneous power reads as zero.
+    generation_hours counts only intervals where active_power_w > 0.
+    """
     row = conn.execute(
         """
         SELECT
             MAX(energy_today_kwh),
             MAX(active_power_w),
             AVG(temperature_c),
-            COUNT(*) * ? / 3600.0
+            SUM(CASE WHEN active_power_w > 0 THEN 1 ELSE 0 END) * ? / 3600.0
         FROM readings
-        WHERE date(timestamp) = ? AND active_power_w > 0
+        WHERE date(timestamp) = ?
         """,
-        (cfg.POLL_INTERVAL, today),
+        (cfg.POLL_INTERVAL, date),
     ).fetchone()
 
-    if row and row[0] is not None:
+    if row and row[0] is not None and row[0] > 0:
         peak_row = conn.execute(
             "SELECT timestamp FROM readings WHERE date(timestamp) = ? ORDER BY active_power_w DESC LIMIT 1",
-            (today,),
+            (date,),
         ).fetchone()
         conn.execute(
             """
@@ -233,9 +238,35 @@ def update_daily_summary(conn: sqlite3.Connection) -> None:
                 (date, energy_kwh, peak_power_w, peak_power_time, avg_temperature_c, generation_hours)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (today, row[0], row[1], peak_row[0] if peak_row else None, row[2], row[3]),
+            (date, row[0], row[1], peak_row[0] if peak_row else None, row[2], row[3]),
         )
         conn.commit()
+
+
+def update_daily_summary(conn: sqlite3.Connection) -> None:
+    """Upsert the daily summary row for today."""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    upsert_daily_summary_for_date(conn, today)
+
+
+def backfill_daily_summaries(conn: sqlite3.Connection) -> None:
+    """Upsert daily summary rows for any past dates in readings that are missing
+    from daily_summary. Called at startup so gaps caused by container restarts
+    are healed automatically.
+    """
+    missing = conn.execute(
+        """
+        SELECT DISTINCT date(timestamp) AS d
+        FROM readings
+        WHERE date(timestamp) < date('now', 'utc')
+          AND date(timestamp) NOT IN (SELECT date FROM daily_summary)
+        ORDER BY d
+        """
+    ).fetchall()
+
+    for (date,) in missing:
+        upsert_daily_summary_for_date(conn, date)
+        log.info("Backfilled daily summary for %s", date)
 
 
 # ---------------------------------------------------------------------------
@@ -248,6 +279,7 @@ def main() -> None:
         sys.exit(1)
 
     conn = init_db(cfg.DB_PATH)
+    backfill_daily_summaries(conn)
 
     log.info("Solar Monitor Collector started")
     log.info("  Inverter : %s:%s", cfg.INVERTER_IP, cfg.MODBUS_PORT)
