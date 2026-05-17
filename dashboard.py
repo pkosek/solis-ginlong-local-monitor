@@ -105,6 +105,7 @@ def api_history():
             SELECT date(timestamp) AS timestamp,
                    AVG({POWER_EXPR})  AS active_power_w,
                    MAX({POWER_EXPR})  AS peak_power_w,
+                   AVG(pv1_voltage_v) AS pv1_voltage_v,
                    AVG(temperature_c) AS temperature_c,
                    MAX(energy_today_kwh) AS energy_today_kwh
             FROM readings
